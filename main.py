@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime
 from audio_recorder_streamlit import audio_recorder
+from zoneinfo import ZoneInfo
 import boto3
 import os
 try:
@@ -68,8 +69,18 @@ dog_name = st.selectbox(
     help="Select the dog's name from the list or type a new one.",
 )
 
+# 🐾 Handler Nam
+
+handler_name = st.selectbox(
+    "Handler Name*",
+    options=os.getenv("HANDLERS", "").split(","),
+    help="Select the handler's name from the list.",
+)
+
 
 # 📅 Date and Time
+APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Jerusalem")
+local_time = datetime.now(ZoneInfo(APP_TIMEZONE)).time()
 date = st.date_input("Date*", value=datetime.today())
 time = st.time_input("Time*", value=datetime.now().time())
 
@@ -93,7 +104,7 @@ if st.button("Submit"):
 
         # Filename construction
         safe_dog_name = dog_name.replace(" ", "_")
-        filename = f"beit_oved/{safe_dog_name}_{date}_{time}.wav".replace(":", "-")
+        filename = f"beit_oved/{safe_dog_name}_{handler_name}_{date}_{time}.wav".replace(":", "-")
 
         # Write to a BytesIO for S3 upload
         import io
