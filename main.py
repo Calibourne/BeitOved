@@ -3,9 +3,28 @@ from datetime import datetime
 from audio_recorder_streamlit import audio_recorder
 import boto3
 import os
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, skip
 
-load_dotenv()  # Load environment variables from .env file
+# Check whether running on Streamlit Cloud (secrets available) or local (.env)
+if "AWS_ACCESS_KEY_ID" in st.secrets:
+    AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
+    AWS_REGION = st.secrets.get("AWS_REGION", "eu-central-1")
+    S3_BUCKET = st.secrets["S3_BUCKET_NAME"]
+else:
+    AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+    AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+    AWS_REGION = os.getenv("AWS_REGION", "eu-central-1")
+    S3_BUCKET = os.getenv("S3_BUCKET_NAME")
+
+# Sanity check
+if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET]):
+    st.error("🚫 AWS credentials or bucket not configured!")
+    st.stop()
 
 
 # ===========================
