@@ -82,7 +82,7 @@ handler_name = st.selectbox(
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Jerusalem")
 local_time = datetime.now(ZoneInfo(APP_TIMEZONE)).time()
 date = st.date_input("Date*", value=datetime.today())
-time = st.time_input("Time*", value=datetime.now().time())
+time = st.time_input("Time*", value=local_time, help="Select the time of the training session.")
 
 
 # 🎙️ Audio Recording
