@@ -1,6 +1,6 @@
 import streamlit as st
 from datetime import datetime
-from audio_recorder_streamlit import audio_recorder
+# from audio_recorder_streamlit import audio_recorder
 from zoneinfo import ZoneInfo
 import boto3
 import os
@@ -87,7 +87,12 @@ time = st.time_input("Time*", value=local_time, help="Select the time of the tra
 
 # 🎙️ Audio Recording
 st.markdown("### 🎧 Record Audio:")
-wav_audio_data = audio_recorder()
+wav_audio_data = st.audio_input(
+    "Click to start recording",
+    key="audio_recorder",
+    # format="audio/wav",
+    help="Record the dog's training session audio. Click to start and stop recording.",
+)
 
 if wav_audio_data is not None:
     st.audio(wav_audio_data, format="audio/wav")
