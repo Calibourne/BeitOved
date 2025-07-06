@@ -5,18 +5,6 @@ import boto3
 import os
 import io
 
-# ========== 🔐 Load config (from secrets) ==========
-def load_config(name: str):
-    key = f"{name.upper()}_CONFIG"
-    try:
-        raw_yaml = st.secrets[key]
-        st.info(raw_yaml, icon="🔍")
-        return yaml.safe_load(raw_yaml)
-    except Exception as e:
-        st.error(f"❌ Couldn't load config '{key}': {e}")
-        st.stop()
-
-
 # ========== 🌍 Determine current config ==========
 st.set_page_config(page_title="Dog Audio Logger", page_icon="🐶")
 available_configs = st.secrets["configs"]
