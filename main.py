@@ -85,9 +85,7 @@ if st.button("Submit"):
         filename = f"{config['s3_prefix']}/{'_'.join(safe_fields)}_{date}_{time}.wav".replace(":", "-")
 
         # Upload
-        audio_bytes = io.BytesIO(wav_audio_data)
-        audio_bytes.seek(0)
-        upload_to_s3(audio_bytes, filename, S3_BUCKET)
+        upload_to_s3(wav_audio_data, filename, S3_BUCKET)
 
         # Summary
         st.markdown("### ✅ Submission Summary")
