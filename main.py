@@ -1,16 +1,32 @@
 import streamlit as st
 from datetime import datetime
-# from audio_recorder_streamlit import audio_recorder
 from zoneinfo import ZoneInfo
 import boto3
 import os
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass  # dotenv not installed, skip
+import yaml
+import io
 
-# Check whether running on Streamlit Cloud (secrets available) or local (.env)
+# ========== 🔐 Load config (from secrets) ==========
+def load_config(name: str):
+    key = f"{name.upper()}_CONFIG"
+    try:
+        raw_yaml = st.secrets[key]
+        st.info(raw_yaml, icon="🔍")
+        return yaml.safe_load(raw_yaml)
+    except Exception as e:
+        st.error(f"❌ Couldn't load config '{key}': {e}")
+        st.stop()
+
+
+# ========== 🌍 Determine current config ==========
+st.set_page_config(page_title="Dog Audio Logger", page_icon="🐶")
+available_configs = st.secrets["configs"]
+query_params = st.query_params
+mode = query_params.get("mode", [None])[0] or st.selectbox("Choose Project", options=available_configs.keys())
+
+config = available_configs[mode]
+
+# ========== ☁️ AWS SETUP ==========
 if "AWS_ACCESS_KEY_ID" in st.secrets:
     AWS_ACCESS_KEY_ID = st.secrets["AWS_ACCESS_KEY_ID"]
     AWS_SECRET_ACCESS_KEY = st.secrets["AWS_SECRET_ACCESS_KEY"]
@@ -22,20 +38,9 @@ else:
     AWS_REGION = os.getenv("AWS_REGION", "eu-central-1")
     S3_BUCKET = os.getenv("S3_BUCKET_NAME")
 
-# Sanity check
 if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET]):
     st.error("🚫 AWS credentials or bucket not configured!")
     st.stop()
-
-
-# ===========================
-# 🔧 AWS S3 CONFIG
-# ===========================
-AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
-AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.getenv("AWS_REGION", "eu-central-1")  # or whatever your region is
-S3_BUCKET = os.getenv("S3_BUCKET_NAME")
-
 
 def upload_to_s3(file_data, filename, bucket):
     s3 = boto3.client(
@@ -52,31 +57,18 @@ def upload_to_s3(file_data, filename, bucket):
     except Exception as e:
         st.error(f"❌ Upload failed: {e}")
 
+# ========== 🚀 Streamlit UI ==========
+st.title(config["title"])
+st.subheader(config["subtitle"])
 
-# ===========================
-# 🚀 Streamlit UI
-# ===========================
-st.set_page_config(page_title="Beit Oved Training", page_icon="🐶")
-
-st.title("🐾 Beit Oved Training")
-st.subheader("Insert data here")
-
-
-# 🐕 Dog Name
-dog_name = st.selectbox(
-    "Dog Name*",
-    options=os.getenv("DOGS", "").split(","),
-    help="Select the dog's name from the list or type a new one.",
-)
-
-# 🐾 Handler Nam
-
-handler_name = st.selectbox(
-    "Handler Name*",
-    options=os.getenv("HANDLERS", "").split(","),
-    help="Select the handler's name from the list.",
-)
-
+# 🐕 Dynamic fields from config
+field_values = {}
+for field_key, field_info in config["fields"].items():
+    value = st.selectbox(
+        field_info["label"],
+        options=field_info["options"],
+    )
+    field_values[field_key] = value
 
 # 📅 Date and Time
 APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Jerusalem")
@@ -84,44 +76,35 @@ local_time = datetime.now(ZoneInfo(APP_TIMEZONE)).time()
 date = st.date_input("Date*", value=datetime.today())
 time = st.time_input("Time*", value=local_time, help="Select the time of the training session.")
 
-
 # 🎙️ Audio Recording
 st.markdown("### 🎧 Record Audio:")
-wav_audio_data = st.audio_input(
-    "Click to start recording",
-    key="audio_recorder",
-    # format="audio/wav",
-    help="Record the dog's training session audio. Click to start and stop recording.",
-)
+st.info(config["audio_prompt"])
+wav_audio_data = st.audio_input("Click to start recording", key="audio_recorder")
 
 if wav_audio_data is not None:
     st.audio(wav_audio_data, format="audio/wav")
 
-
 # 🚀 Submit Button
 if st.button("Submit"):
-    if not dog_name:
+    if not field_values.get("dog_name"):
         st.error("🚫 Dog name is required!")
     elif wav_audio_data is None:
         st.error("🚫 Audio recording is required!")
     else:
         st.success("✅ Submission received!")
 
-        # Filename construction
-        safe_dog_name = dog_name.replace(" ", "_")
-        filename = f"beit_oved/{safe_dog_name}_{handler_name}_{date}_{time}.wav".replace(":", "-")
+        # 🔒 Safe filename
+        safe_fields = [field_values[k].replace(" ", "_") for k in field_values]
+        filename = f"{config['s3_prefix']}/{'_'.join(safe_fields)}_{date}_{time}.wav".replace(":", "-")
 
-        # Write to a BytesIO for S3 upload
-        import io
-
+        # Upload
         audio_bytes = io.BytesIO(wav_audio_data)
         audio_bytes.seek(0)
-
-        # Upload to S3
         upload_to_s3(audio_bytes, filename, S3_BUCKET)
 
-        # Display submission summary
+        # Summary
         st.markdown("### ✅ Submission Summary")
-        st.write(f"**Dog Name:** {dog_name}")
+        for key, val in field_values.items():
+            st.write(f"**{config['fields'][key]['label']}**: {val}")
         st.write(f"**Date:** {date}")
         st.write(f"**Time:** {time}")
