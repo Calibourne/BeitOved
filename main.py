@@ -3,7 +3,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import boto3
 import os
-import yaml
 import io
 
 # ========== 🔐 Load config (from secrets) ==========
